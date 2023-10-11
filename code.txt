@@ -1,0 +1,97 @@
+[1:35 PM] Muhammad Husnain
+
+# List of directories to search for files
+$directories = "C:\inetpub\wwwroot", "C:\Program Files (x86)\CureMD Corporation", "C:\Program Files (x86)\Default Company Name"
+
+ 
+
+# Server name and URL replacements
+$Server_Name = "Release01"
+$Server_URL = "CloudXYZTEST.curemd.com"
+$serverNameReplace = @{ "Release01" = "CMDLHRVM20" }
+$urlReplace = @{ "CloudXYZTEST.curemd.com" = "CMDLHRVM20.curemd.com" }
+
+ 
+
+# Get the current date and time in a suitable format
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+
+ 
+
+# Set the log file path with the timestamp
+$logFilePath = "C:\ReplaceLog_$timestamp.txt"
+
+ 
+
+# Start the transcript for logging
+Start-Transcript -Path $logFilePath
+
+ 
+
+# Function to replace text in files
+function Replace-InFile {
+    param(
+        [string]$filePath,
+        [hashtable]$replacements
+    )
+
+ 
+
+    $content = Get-Content $filePath
+    foreach ($src in $replacements.Keys) {
+        $content = $content -replace [regex]::Escape($src), $replacements[$src]
+    }
+    Set-Content -Value $content -Path $filePath
+}
+
+ 
+
+# Iterate through directories
+foreach ($directory in $directories) {
+    Get-ChildItem -Path $directory -Recurse | Where-Object { $_.Extension -eq ".config" -or $_.Extension -eq ".json" } | ForEach-Object {
+        $filePath = $_.FullName
+
+		 $fileContents = Get-Content -Path $filePath
+
+ 
+
+         # Check if the keyword exists in the file
+        if ($fileContents -match $Server_Name -or $fileContents -match $Server_URL) {
+
+        try {
+
+ 
+
+            # Replace URLs in files 
+               Replace-InFile -filePath $filePath -replacements $urlReplace -Force
+
+            # Replace server names in files
+               Replace-InFile -filePath $filePath -replacements $serverNameReplace -Force
+
+ 
+
+ 
+
+            Write-Host "Updated: $filePath"
+
+
+
+        }
+        catch {
+            Write-Host "Error processing $filePath : $_"
+        }
+
+ 
+
+        }
+    }
+}
+
+ 
+
+# Stop the transcript and close the log
+Stop-Transcript
+
+ 
+
+Write-Host "Replacement process completed. Log saved to $logFilePath"
